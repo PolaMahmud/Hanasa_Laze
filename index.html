@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Sampling and Thresholding</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls input[type="file"] {
+      margin-bottom: 10px;
+    }
+    .slider-container {
+      margin: 10px 0;
+    }
+    .canvas-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .canvas-wrapper {
+      text-align: center;
+      max-width: 45vw; /* Each preview will be at most 45% of the viewport width */
+    }
+    canvas {
+      border: 1px solid #ccc;
+      background: #eee;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      width: 100%;
+      height: auto;
+    }
+    #downloadBtn {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Sampling &amp; Thresholding Tool</h1>
+    <div class="controls">
+      <input type="file" id="upload" accept="image/*">
+      <div class="slider-container">
+        <label for="threshold">Threshold: <span id="threshold-value">128</span></label>
+        <input type="range" id="threshold" min="0" max="255" value="128">
+      </div>
+    </div>
+    <div class="canvas-container">
+      <div class="canvas-wrapper">
+        <h2>Step 3: image sampling</h2>
+        <canvas id="sampleCanvasDisplay"></canvas>
+      </div>
+      <div class="canvas-wrapper">
+        <h2>Step 4: image thresholding</h2>
+        <canvas id="thresholdCanvasDisplay"></canvas>
+      </div>
+    </div>
+    <button id="downloadBtn">Download Output Image</button>
+  </div>
+
+  <script>
+    // Global variables and constants
+    const uploadInput = document.getElementById("upload");
+    const thresholdSlider = document.getElementById("threshold");
+    const thresholdValueLabel = document.getElementById("threshold-value");
+    const sampleCanvasDisplay = document.getElementById("sampleCanvasDisplay");
+    const thresholdCanvasDisplay = document.getElementById("thresholdCanvasDisplay");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    // Offscreen canvases to hold the lower resolution image and thresholded version.
+    let offscreenSampleCanvas = document.createElement("canvas");
+    let offscreenThresholdCanvas = document.createElement("canvas");
+
+    // We'll use a sampling factor (a fraction of the original image size) to create the pixelated effect.
+    const sampleFactor = 0.1; // 10% of original resolution
+
+    // Original image object
+    let originalImage = new Image();
+
+    // When an image file is selected...
+    uploadInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          originalImage = new Image();
+          originalImage.onload = () => {
+            processImage();
+          };
+          originalImage.src = event.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+
+    // Update threshold value label when slider moves
+    thresholdSlider.addEventListener("input", () => {
+      thresholdValueLabel.textContent = thresholdSlider.value;
+      if (originalImage.complete) {
+        updateThreshold();
+      }
+    });
+
+    // Process the image to create a lower resolution (sampled) version and update both canvases.
+    function processImage() {
+      // Determine the new (sampled) dimensions
+      const sampleWidth = Math.max(1, Math.floor(originalImage.width * sampleFactor));
+      const sampleHeight = Math.max(1, Math.floor(originalImage.height * sampleFactor));
+
+      // Set up the offscreen sample canvas
+      offscreenSampleCanvas.width = sampleWidth;
+      offscreenSampleCanvas.height = sampleHeight;
+      const offCtx = offscreenSampleCanvas.getContext("2d");
+      offCtx.clearRect(0, 0, sampleWidth, sampleHeight);
+      offCtx.drawImage(originalImage, 0, 0, sampleWidth, sampleHeight);
+
+      // Set the display canvases to the original image size
+      sampleCanvasDisplay.width = originalImage.width;
+      sampleCanvasDisplay.height = originalImage.height;
+      thresholdCanvasDisplay.width = originalImage.width;
+      thresholdCanvasDisplay.height = originalImage.height;
+
+      // Draw the low-res sampled image scaled up onto the sample display canvas.
+      const sampleDisplayCtx = sampleCanvasDisplay.getContext("2d");
+      sampleDisplayCtx.imageSmoothingEnabled = false;
+      sampleDisplayCtx.clearRect(0, 0, sampleCanvasDisplay.width, sampleCanvasDisplay.height);
+      sampleDisplayCtx.drawImage(offscreenSampleCanvas, 0, 0, sampleWidth, sampleHeight, 0, 0, sampleCanvasDisplay.width, sampleCanvasDisplay.height);
+
+      // Also update the threshold image initially.
+      updateThreshold();
+    }
+
+    // Update the thresholded image based on the current slider value.
+    function updateThreshold() {
+      if (!offscreenSampleCanvas.width || !offscreenSampleCanvas.height) return;
+
+      const thresholdVal = Number(thresholdSlider.value);
+
+      // Get pixel data from the sampled (low-res) image
+      const offCtx = offscreenSampleCanvas.getContext("2d");
+      const sampleWidth = offscreenSampleCanvas.width;
+      const sampleHeight = offscreenSampleCanvas.height;
+      const imageData = offCtx.getImageData(0, 0, sampleWidth, sampleHeight);
+      const data = imageData.data;
+
+      // Create new image data for thresholded version
+      const thresholdImageData = offCtx.createImageData(sampleWidth, sampleHeight);
+      const tData = thresholdImageData.data;
+
+      // Process each pixel
+      for (let i = 0; i < data.length; i += 4) {
+        // Calculate luminance (perceived brightness)
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        const value = (luminance >= thresholdVal) ? 255 : 0;
+        tData[i] = value;
+        tData[i + 1] = value;
+        tData[i + 2] = value;
+        tData[i + 3] = 255; // opaque
+      }
+
+      // Put threshold image data into an offscreen threshold canvas (same size as the low-res sample)
+      offscreenThresholdCanvas.width = sampleWidth;
+      offscreenThresholdCanvas.height = sampleHeight;
+      const threshCtx = offscreenThresholdCanvas.getContext("2d");
+      threshCtx.putImageData(thresholdImageData, 0, 0);
+
+      // Now draw the thresholded offscreen canvas scaled up to the display canvas.
+      const thresholdDisplayCtx = thresholdCanvasDisplay.getContext("2d");
+      thresholdDisplayCtx.imageSmoothingEnabled = false;
+      thresholdDisplayCtx.clearRect(0, 0, thresholdCanvasDisplay.width, thresholdCanvasDisplay.height);
+      thresholdDisplayCtx.drawImage(offscreenThresholdCanvas, 0, 0, sampleWidth, sampleHeight, 0, 0, thresholdCanvasDisplay.width, thresholdCanvasDisplay.height);
+    }
+
+    // Download the thresholded image from the display canvas.
+    downloadBtn.addEventListener("click", () => {
+      const dataURL = thresholdCanvasDisplay.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataURL;
+      link.download = "thresholded_output.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  </script>
+</body>
+</html>
