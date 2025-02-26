@@ -68,13 +68,26 @@
         margin: 10px 0;
       }
     }
+    /* Style for the start button */
+    #startButton {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
+  <!-- Start Button to initiate camera access -->
+  <button id="startButton">Start Camera</button>
   <div id="container">
     <!-- Canvas will be attached here -->
     <div id="binary-art"></div>
-    <!-- Compact Controls Panel -->
+    <!-- Controls Panel -->
     <div id="controls">
       <div class="control">
         <label for="resolutionSlider">Resolution (Width):</label>
@@ -127,19 +140,20 @@
       const cnv = createCanvas(canvasWidth, canvasHeight);
       cnv.parent("binary-art");
 
-      video = createCapture(VIDEO);
-      video.size(canvasWidth, canvasHeight);
-      video.hide();
+      // Note: Video capture is now initialized on user gesture,
+      // so we do not call createCapture(VIDEO) here.
 
       noStroke();
-
       // Use Share Tech Mono so that the "|" looks like a perfectly vertical line.
       textFont('Share Tech Mono');
 
       // Set website background color
       document.body.style.backgroundColor = bgColor;
 
-      // Get control elements
+      setupControls();
+    }
+
+    function setupControls() {
       const resolutionSlider = document.getElementById('resolutionSlider');
       const thresholdSlider = document.getElementById('thresholdSlider');
       const resolutionValue = document.getElementById('resolutionValue');
@@ -179,29 +193,42 @@
       });
     }
 
+    // Initialize video capture after a user gesture
+    document.getElementById('startButton').addEventListener('click', () => {
+      if (!video) {
+        video = createCapture(VIDEO);
+        video.size(canvasWidth, canvasHeight);
+        video.hide();
+      }
+      // Hide the start button once the camera is started
+      document.getElementById('startButton').style.display = 'none';
+    });
+
     function draw() {
       background(bgColor);
-      video.loadPixels();
-      // Mirror the video horizontally
-      scale(-1, 1);
-      translate(-width, 0);
+      if (video) {
+        video.loadPixels();
+        // Mirror the video horizontally
+        scale(-1, 1);
+        translate(-width, 0);
 
-      const gridSize = width / resolution;
-      for (let y = 0; y < height; y += gridSize) {
-        for (let x = 0; x < width; x += gridSize) {
-          let index = (x + y * width) * 4;
-          let r = video.pixels[index];
-          let g = video.pixels[index + 1];
-          let b = video.pixels[index + 2];
+        const gridSize = width / resolution;
+        for (let y = 0; y < height; y += gridSize) {
+          for (let x = 0; x < width; x += gridSize) {
+            let index = (x + y * width) * 4;
+            let r = video.pixels[index];
+            let g = video.pixels[index + 1];
+            let b = video.pixels[index + 2];
 
-          let brightnessValue = (r + g + b) / 3;
-          // Use "|" for brightness values above threshold, otherwise "0"
-          let binaryValue = brightnessValue > threshold ? "|" : "0";
+            let brightnessValue = (r + g + b) / 3;
+            // Use "|" for brightness values above threshold, otherwise "0"
+            let binaryValue = brightnessValue > threshold ? "|" : "0";
 
-          fill(binaryValue === "|" ? color1 : color0);
-          textSize(gridSize * 0.7);
-          textAlign(CENTER, CENTER);
-          text(binaryValue, x + gridSize / 2, y + gridSize / 2);
+            fill(binaryValue === "|" ? color1 : color0);
+            textSize(gridSize * 0.7);
+            textAlign(CENTER, CENTER);
+            text(binaryValue, x + gridSize / 2, y + gridSize / 2);
+          }
         }
       }
     }
