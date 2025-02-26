@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Note: This viewport meta tag sets a fixed width for consistency -->
+  <!-- Fixed viewport width for a desktop-like experience -->
   <meta name="viewport" content="width=640, initial-scale=1.0" />
   <title>Video Pixel Art</title>
   <!-- Load Share Tech Mono from Google Fonts -->
@@ -11,40 +11,66 @@
   <style>
     body {
       margin: 0;
-      background-color: #000; /* Default background */
+      background-color: #000;
+      font-family: Arial, sans-serif;
     }
-    /* Container holds the canvas and controls in a column layout */
+    /* Hamburger menu button styling */
+    #menuButton {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1100;
+      background: transparent;
+      border: none;
+      font-size: 30px;
+      color: white;
+      cursor: pointer;
+    }
+    /* Main container centered on the page */
     #container {
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      align-items: center;
+      height: 100vh;
+      box-sizing: border-box;
+      padding: 20px;
+    }
+    /* Canvas container for the square canvas */
+    #binary-art {
+      /* No specific styling needed here */
+    }
+    /* Sidebar (hidden controls panel) */
+    #sidebar {
+      position: fixed;
+      left: -320px; /* hidden offscreen by default */
+      top: 0;
+      width: 300px;
+      height: 100%;
+      background-color: #f5f5f5;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+      transition: left 0.3s ease;
       padding: 20px;
       box-sizing: border-box;
-    }
-    /* Canvas container */
-    #binary-art {
-      margin-bottom: 20px;
-    }
-    /* Controls container at the bottom with a fixed width */
-    #controls {
-      width: 640px;
+      overflow-y: auto;
+      z-index: 1000;
       color: #000;
     }
-    /* Each control row */
+    #sidebar.open {
+      left: 0;
+    }
+    /* Controls styling */
     .control {
       display: flex;
       align-items: center;
       gap: 5px;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
     }
     .control label {
-      min-width: 150px;
+      min-width: 130px;
     }
-    #controls label,
-    #controls input,
-    #controls span {
+    #sidebar label,
+    #sidebar input,
+    #sidebar span {
       margin: 0;
       padding: 0;
       line-height: 1.2;
@@ -52,39 +78,41 @@
   </style>
 </head>
 <body>
-  <div id="container">
-    <!-- Canvas will be attached here -->
-    <div id="binary-art"></div>
-    <!-- Controls Panel positioned at the bottom -->
-    <div id="controls">
-      <div class="control">
-        <label for="resolutionSlider">Resolution (Width):</label>
-        <!-- Slider values 0 to 3 map to [16, 32, 64, 128] -->
-        <input type="range" id="resolutionSlider" min="0" max="3" step="1" value="0" />
-        <span id="resolutionValue">16</span>
-      </div>
-      <div class="control">
-        <label for="thresholdSlider">Threshold:</label>
-        <input type="range" id="thresholdSlider" min="0" max="255" value="100" />
-        <span id="thresholdValue">100</span>
-      </div>
-      <div class="control">
-        <label for="color0">Color for 0:</label>
-        <input type="color" id="color0" value="#646464" />
-      </div>
-      <div class="control">
-        <label for="color1">Color for |:</label>
-        <input type="color" id="color1" value="#FFFFFF" />
-      </div>
-      <div class="control">
-        <label for="bgColor">Background Color:</label>
-        <input type="color" id="bgColor" value="#000000" />
-      </div>
-      <div class="control">
-        <label for="textColorSwitch">Controls Text Color (white):</label>
-        <input type="checkbox" id="textColorSwitch" />
-      </div>
+  <!-- Hamburger menu button -->
+  <button id="menuButton">&#9776;</button>
+  <!-- Sidebar for controls -->
+  <div id="sidebar">
+    <div class="control">
+      <label for="resolutionSlider">Resolution (Width):</label>
+      <!-- Slider values 0 to 3 map to [16, 32, 64, 128] -->
+      <input type="range" id="resolutionSlider" min="0" max="3" step="1" value="0" />
+      <span id="resolutionValue">16</span>
     </div>
+    <div class="control">
+      <label for="thresholdSlider">Threshold:</label>
+      <input type="range" id="thresholdSlider" min="0" max="255" value="100" />
+      <span id="thresholdValue">100</span>
+    </div>
+    <div class="control">
+      <label for="color0">Color for 0:</label>
+      <input type="color" id="color0" value="#646464" />
+    </div>
+    <div class="control">
+      <label for="color1">Color for |:</label>
+      <input type="color" id="color1" value="#FFFFFF" />
+    </div>
+    <div class="control">
+      <label for="bgColor">Background Color:</label>
+      <input type="color" id="bgColor" value="#000000" />
+    </div>
+    <div class="control">
+      <label for="textColorSwitch">Controls Text Color (white):</label>
+      <input type="checkbox" id="textColorSwitch" />
+    </div>
+  </div>
+  <!-- Main container for canvas -->
+  <div id="container">
+    <div id="binary-art"></div>
   </div>
   <script>
     let video;
@@ -93,27 +121,25 @@
     let color0 = '#646464';
     let color1 = '#FFFFFF';
     let bgColor = '#000000';
-    const canvasWidth = 640;
-    const canvasHeight = 360;
-    // Allowed resolution values
+    const canvasSize = 640; // square canvas
     const resolutionOptions = [16, 32, 64, 128];
-
+    
     function setup() {
-      // Create the fixed-size canvas and attach it to the canvas container
-      const cnv = createCanvas(canvasWidth, canvasHeight);
+      // Create a square canvas and attach it to the binary-art div
+      const cnv = createCanvas(canvasSize, canvasSize);
       cnv.parent("binary-art");
-
-      // Immediately initialize video capture (desktop browsers auto-play video)
+      
+      // Initialize video capture (desktop browsers auto-play video)
       video = createCapture(VIDEO);
-      video.size(canvasWidth, canvasHeight);
+      video.size(canvasSize, canvasSize);
       video.hide();
-
+      
       noStroke();
       textFont('Share Tech Mono');
       document.body.style.backgroundColor = bgColor;
       setupControls();
     }
-
+    
     function setupControls() {
       const resolutionSlider = document.getElementById('resolutionSlider');
       const thresholdSlider = document.getElementById('thresholdSlider');
@@ -123,44 +149,44 @@
       const color1Picker = document.getElementById('color1');
       const bgColorPicker = document.getElementById('bgColor');
       const textColorSwitch = document.getElementById('textColorSwitch');
-      const controlsDiv = document.getElementById('controls');
-
+      const sidebar = document.getElementById('sidebar');
+      
       resolutionSlider.addEventListener('input', (event) => {
         let idx = parseInt(event.target.value);
         resolution = resolutionOptions[idx];
         resolutionValue.textContent = resolution;
       });
-
+      
       thresholdSlider.addEventListener('input', (event) => {
         threshold = parseInt(event.target.value);
         thresholdValue.textContent = threshold;
       });
-
+      
       color0Picker.addEventListener('input', (event) => {
         color0 = event.target.value;
       });
-
+      
       color1Picker.addEventListener('input', (event) => {
         color1 = event.target.value;
       });
-
+      
       bgColorPicker.addEventListener('input', (event) => {
         bgColor = event.target.value;
         document.body.style.backgroundColor = bgColor;
       });
-
+      
       textColorSwitch.addEventListener('change', (event) => {
-        controlsDiv.style.color = event.target.checked ? '#FFFFFF' : '#000000';
+        sidebar.style.color = event.target.checked ? '#FFFFFF' : '#000000';
       });
     }
-
+    
     function draw() {
       background(bgColor);
       video.loadPixels();
       // Mirror the video horizontally
       scale(-1, 1);
       translate(-width, 0);
-
+      
       const gridSize = width / resolution;
       for (let y = 0; y < height; y += gridSize) {
         for (let x = 0; x < width; x += gridSize) {
@@ -169,7 +195,7 @@
           let g = video.pixels[index + 1];
           let b = video.pixels[index + 2];
           let brightnessValue = (r + g + b) / 3;
-          // Display "|" for brightness above threshold, otherwise "0"
+          // Use "|" if above threshold; otherwise "0"
           let binaryValue = brightnessValue > threshold ? "|" : "0";
           fill(binaryValue === "|" ? color1 : color0);
           textSize(gridSize * 0.7);
@@ -178,6 +204,13 @@
         }
       }
     }
+    
+    // Toggle sidebar visibility when the hamburger menu button is clicked
+    const menuButton = document.getElementById('menuButton');
+    const sidebar = document.getElementById('sidebar');
+    menuButton.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+    });
   </script>
 </body>
 </html>
