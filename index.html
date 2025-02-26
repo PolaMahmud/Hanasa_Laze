@@ -11,29 +11,29 @@
     /* Reset some defaults */
     body {
       margin: 0;
-      /* Background color set dynamically */
+      background-color: #000; /* default background */
     }
-    /* Main container for canvas and controls */
+    /* Container holds canvas and controls in a column layout */
     #container {
       display: flex;
-      flex-direction: row;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
-      height: 100vh;
-      width: 100vw;
+      min-height: 100vh;
       box-sizing: border-box;
       padding: 20px;
     }
     /* Canvas container */
     #binary-art {
-      margin: 20px;
+      margin-bottom: 20px;
     }
-    /* Controls container */
+    /* Controls container now at the bottom */
     #controls {
       display: flex;
       flex-direction: column;
-      margin: 20px;
-      color: #000000;
+      width: 100%;
+      max-width: 640px;
+      color: #000;
     }
     /* Each control row with aligned items */
     .control {
@@ -42,11 +42,9 @@
       gap: 5px;
       margin-bottom: 5px;
     }
-    /* Give labels a fixed minimum width for alignment */
     .control label {
       min-width: 150px;
     }
-    /* Reduce default margins/paddings for inputs and labels */
     #controls label,
     #controls input,
     #controls span {
@@ -54,40 +52,13 @@
       padding: 0;
       line-height: 1.2;
     }
-    /* Responsive layout for mobile */
-    @media (max-width: 768px) {
-      #container {
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-      }
-      #binary-art {
-        margin: 10px 0;
-      }
-      #controls {
-        margin: 10px 0;
-      }
-    }
-    /* Style for the start button */
-    #startButton {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      z-index: 1000;
-    }
   </style>
 </head>
 <body>
-  <!-- Start Button to initiate camera access -->
-  <button id="startButton">Start Camera</button>
   <div id="container">
     <!-- Canvas will be attached here -->
     <div id="binary-art"></div>
-    <!-- Controls Panel -->
+    <!-- Controls Panel positioned at the bottom -->
     <div id="controls">
       <div class="control">
         <label for="resolutionSlider">Resolution (Width):</label>
@@ -118,8 +89,10 @@
       </div>
     </div>
   </div>
+
   <script>
     let video;
+    let started = false;
     let resolution = 16;
     let threshold = 100;
     let color0 = '#646464';
@@ -130,7 +103,7 @@
     const resolutionOptions = [16, 32, 64, 128];
 
     function setup() {
-      // For mobile view, use a square canvas; otherwise, use a 16:9 canvas.
+      // For mobile, use a square canvas; for larger screens use a 16:9 canvas.
       if (windowWidth < 768) {
         canvasWidth = canvasHeight = Math.min(windowWidth * 0.9, 640);
       } else {
@@ -140,16 +113,9 @@
       const cnv = createCanvas(canvasWidth, canvasHeight);
       cnv.parent("binary-art");
 
-      // Note: Video capture is now initialized on user gesture,
-      // so we do not call createCapture(VIDEO) here.
-
       noStroke();
-      // Use Share Tech Mono so that the "|" looks like a perfectly vertical line.
       textFont('Share Tech Mono');
-
-      // Set website background color
       document.body.style.backgroundColor = bgColor;
-
       setupControls();
     }
 
@@ -193,16 +159,17 @@
       });
     }
 
-    // Initialize video capture after a user gesture
-    document.getElementById('startButton').addEventListener('click', () => {
-      if (!video) {
+    // Trigger camera capture with a user gesture on the canvas
+    function touchStarted() {
+      if (!started) {
         video = createCapture(VIDEO);
         video.size(canvasWidth, canvasHeight);
         video.hide();
+        started = true;
       }
-      // Hide the start button once the camera is started
-      document.getElementById('startButton').style.display = 'none';
-    });
+      // Prevent default behavior (especially on mobile)
+      return false;
+    }
 
     function draw() {
       background(bgColor);
@@ -230,6 +197,12 @@
             text(binaryValue, x + gridSize / 2, y + gridSize / 2);
           }
         }
+      } else {
+        // Prompt the user to tap the canvas to start the camera
+        fill(255);
+        textSize(16);
+        textAlign(CENTER, CENTER);
+        text("Tap to start camera", width / 2, height / 2);
       }
     }
   </script>
