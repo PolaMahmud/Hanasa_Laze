@@ -2,40 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Note: This viewport meta tag sets a fixed width for consistency -->
+  <meta name="viewport" content="width=640, initial-scale=1.0" />
   <title>Video Pixel Art</title>
   <!-- Load Share Tech Mono from Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
-    /* Reset some defaults */
     body {
       margin: 0;
-      background-color: #000; /* default background */
+      background-color: #000; /* Default background */
     }
-    /* Container holds canvas and controls in a column layout */
+    /* Container holds the canvas and controls in a column layout */
     #container {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      box-sizing: border-box;
       padding: 20px;
+      box-sizing: border-box;
     }
     /* Canvas container */
     #binary-art {
       margin-bottom: 20px;
     }
-    /* Controls container now at the bottom */
+    /* Controls container at the bottom with a fixed width */
     #controls {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      max-width: 640px;
+      width: 640px;
       color: #000;
     }
-    /* Each control row with aligned items */
+    /* Each control row */
     .control {
       display: flex;
       align-items: center;
@@ -89,29 +86,27 @@
       </div>
     </div>
   </div>
-
   <script>
     let video;
-    let started = false;
     let resolution = 16;
     let threshold = 100;
     let color0 = '#646464';
     let color1 = '#FFFFFF';
     let bgColor = '#000000';
-    let canvasWidth, canvasHeight;
-    // Allowed resolution values (256 removed)
+    const canvasWidth = 640;
+    const canvasHeight = 360;
+    // Allowed resolution values
     const resolutionOptions = [16, 32, 64, 128];
 
     function setup() {
-      // For mobile, use a square canvas; for larger screens use a 16:9 canvas.
-      if (windowWidth < 768) {
-        canvasWidth = canvasHeight = Math.min(windowWidth * 0.9, 640);
-      } else {
-        canvasWidth = 640;
-        canvasHeight = 360;
-      }
+      // Create the fixed-size canvas and attach it to the canvas container
       const cnv = createCanvas(canvasWidth, canvasHeight);
       cnv.parent("binary-art");
+
+      // Immediately initialize video capture (desktop browsers auto-play video)
+      video = createCapture(VIDEO);
+      video.size(canvasWidth, canvasHeight);
+      video.hide();
 
       noStroke();
       textFont('Share Tech Mono');
@@ -159,50 +154,28 @@
       });
     }
 
-    // Trigger camera capture with a user gesture on the canvas
-    function touchStarted() {
-      if (!started) {
-        video = createCapture(VIDEO);
-        video.size(canvasWidth, canvasHeight);
-        video.hide();
-        started = true;
-      }
-      // Prevent default behavior (especially on mobile)
-      return false;
-    }
-
     function draw() {
       background(bgColor);
-      if (video) {
-        video.loadPixels();
-        // Mirror the video horizontally
-        scale(-1, 1);
-        translate(-width, 0);
+      video.loadPixels();
+      // Mirror the video horizontally
+      scale(-1, 1);
+      translate(-width, 0);
 
-        const gridSize = width / resolution;
-        for (let y = 0; y < height; y += gridSize) {
-          for (let x = 0; x < width; x += gridSize) {
-            let index = (x + y * width) * 4;
-            let r = video.pixels[index];
-            let g = video.pixels[index + 1];
-            let b = video.pixels[index + 2];
-
-            let brightnessValue = (r + g + b) / 3;
-            // Use "|" for brightness values above threshold, otherwise "0"
-            let binaryValue = brightnessValue > threshold ? "|" : "0";
-
-            fill(binaryValue === "|" ? color1 : color0);
-            textSize(gridSize * 0.7);
-            textAlign(CENTER, CENTER);
-            text(binaryValue, x + gridSize / 2, y + gridSize / 2);
-          }
+      const gridSize = width / resolution;
+      for (let y = 0; y < height; y += gridSize) {
+        for (let x = 0; x < width; x += gridSize) {
+          let index = (x + y * width) * 4;
+          let r = video.pixels[index];
+          let g = video.pixels[index + 1];
+          let b = video.pixels[index + 2];
+          let brightnessValue = (r + g + b) / 3;
+          // Display "|" for brightness above threshold, otherwise "0"
+          let binaryValue = brightnessValue > threshold ? "|" : "0";
+          fill(binaryValue === "|" ? color1 : color0);
+          textSize(gridSize * 0.7);
+          textAlign(CENTER, CENTER);
+          text(binaryValue, x + gridSize / 2, y + gridSize / 2);
         }
-      } else {
-        // Prompt the user to tap the canvas to start the camera
-        fill(255);
-        textSize(16);
-        textAlign(CENTER, CENTER);
-        text("Tap to start camera", width / 2, height / 2);
       }
     }
   </script>
