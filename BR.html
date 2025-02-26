@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Pixel Art</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    #controls {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="resolutionSlider">Resolution (Width): </label>
+    <input type="range" id="resolutionSlider" min="4" max="64" value="16">
+    <span id="resolutionValue">16</span>
+
+    <label for="thresholdSlider">Threshold: </label>
+    <input type="range" id="thresholdSlider" min="0" max="255" value="100">
+    <span id="thresholdValue">100</span>
+
+    <label for="color0">Color for 0: </label>
+    <input type="color" id="color0" value="#646464">
+
+    <label for="color1">Color for 1: </label>
+    <input type="color" id="color1" value="#FFFFFF">
+  </div>
+  <script>
+    let video;
+    let resolution = 16;
+    let threshold = 100;
+    let color0 = '#646464';
+    let color1 = '#FFFFFF';
+
+    function setup() {
+      const canvasWidth = 640;
+      const canvasHeight = 360; // 16:9 aspect ratio
+      createCanvas(canvasWidth, canvasHeight);
+
+      video = createCapture(VIDEO);
+      video.size(canvasWidth, canvasHeight);
+      video.hide();
+
+      noStroke();
+
+      // Set up sliders and color pickers
+      const resolutionSlider = document.getElementById('resolutionSlider');
+      const thresholdSlider = document.getElementById('thresholdSlider');
+      const resolutionValue = document.getElementById('resolutionValue');
+      const thresholdValue = document.getElementById('thresholdValue');
+      const color0Picker = document.getElementById('color0');
+      const color1Picker = document.getElementById('color1');
+
+      resolutionSlider.addEventListener('input', (event) => {
+        resolution = parseInt(event.target.value);
+        resolutionValue.textContent = resolution;
+      });
+
+      thresholdSlider.addEventListener('input', (event) => {
+        threshold = parseInt(event.target.value);
+        thresholdValue.textContent = threshold;
+      });
+
+      color0Picker.addEventListener('input', (event) => {
+        color0 = event.target.value;
+      });
+
+      color1Picker.addEventListener('input', (event) => {
+        color1 = event.target.value;
+      });
+    }
+
+    function draw() {
+      background(0);
+      video.loadPixels();
+
+      // Mirror the video horizontally
+      scale(-1, 1);
+      translate(-width, 0);
+
+      const gridSize = width / resolution;
+
+      for (let y = 0; y < height; y += gridSize) {
+        for (let x = 0; x < width; x += gridSize) {
+          let index = (x + y * width) * 4;
+          let r = video.pixels[index];
+          let g = video.pixels[index + 1];
+          let b = video.pixels[index + 2];
+
+          let brightnessValue = (r + g + b) / 3;
+          let binaryValue = brightnessValue > threshold ? "1" : "0";
+
+          fill(binaryValue === "1" ? color1 : color0);
+          textSize(gridSize * 0.7);
+          textAlign(CENTER, CENTER);
+          text(binaryValue, x + gridSize / 2, y + gridSize / 2);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
