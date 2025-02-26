@@ -37,23 +37,25 @@
     }
     /* Canvas container for the square canvas */
     #binary-art {
-      /* No specific styling needed here */
+      /* No additional styling needed */
     }
-    /* Sidebar (hidden controls panel) */
+    /* Sidebar (controls panel) with a frosted glass overlay effect */
     #sidebar {
       position: fixed;
-      left: -320px; /* hidden offscreen by default */
-      top: 0;
-      width: 300px;
-      height: 100%;
-      background-color: #f5f5f5;
+      left: -400px; /* Hidden offscreen by default */
+      top: 50px; /* Shifted down so it doesn't overlap with the menu icon */
+      width: 400px;
+      height: calc(100% - 50px);
+      background: rgba(255, 255, 255, 0.2); /* Translucent overlay */
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff; /* White text */
       box-shadow: 2px 0 5px rgba(0,0,0,0.3);
       transition: left 0.3s ease;
       padding: 20px;
       box-sizing: border-box;
       overflow-y: auto;
       z-index: 1000;
-      color: #000;
     }
     #sidebar.open {
       left: 0;
@@ -105,10 +107,6 @@
       <label for="bgColor">Background Color:</label>
       <input type="color" id="bgColor" value="#000000" />
     </div>
-    <div class="control">
-      <label for="textColorSwitch">Controls Text Color (white):</label>
-      <input type="checkbox" id="textColorSwitch" />
-    </div>
   </div>
   <!-- Main container for canvas -->
   <div id="container">
@@ -121,7 +119,7 @@
     let color0 = '#646464';
     let color1 = '#FFFFFF';
     let bgColor = '#000000';
-    const canvasSize = 640; // square canvas
+    const canvasSize = 640; // Square canvas size
     const resolutionOptions = [16, 32, 64, 128];
     
     function setup() {
@@ -148,8 +146,6 @@
       const color0Picker = document.getElementById('color0');
       const color1Picker = document.getElementById('color1');
       const bgColorPicker = document.getElementById('bgColor');
-      const textColorSwitch = document.getElementById('textColorSwitch');
-      const sidebar = document.getElementById('sidebar');
       
       resolutionSlider.addEventListener('input', (event) => {
         let idx = parseInt(event.target.value);
@@ -173,10 +169,6 @@
       bgColorPicker.addEventListener('input', (event) => {
         bgColor = event.target.value;
         document.body.style.backgroundColor = bgColor;
-      });
-      
-      textColorSwitch.addEventListener('change', (event) => {
-        sidebar.style.color = event.target.checked ? '#FFFFFF' : '#000000';
       });
     }
     
