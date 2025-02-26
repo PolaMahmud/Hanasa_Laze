@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Pixel Art</title>
+  <!-- Load Share Tech Mono from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    /* Reset some defaults */
+    body {
+      margin: 0;
+      /* Background color set dynamically */
+    }
+    /* Main container for canvas and controls */
+    #container {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding: 20px;
+    }
+    /* Canvas container */
+    #binary-art {
+      margin: 20px;
+    }
+    /* Controls container */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      margin: 20px;
+      color: #000000;
+    }
+    /* Each control row with aligned items */
+    .control {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    /* Give labels a fixed minimum width for alignment */
+    .control label {
+      min-width: 150px;
+    }
+    /* Reduce default margins/paddings for inputs and labels */
+    #controls label,
+    #controls input,
+    #controls span {
+      margin: 0;
+      padding: 0;
+      line-height: 1.2;
+    }
+    /* Responsive layout for mobile */
+    @media (max-width: 768px) {
+      #container {
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+      }
+      #binary-art {
+        margin: 10px 0;
+      }
+      #controls {
+        margin: 10px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- Canvas will be attached here -->
+    <div id="binary-art"></div>
+    <!-- Compact Controls Panel -->
+    <div id="controls">
+      <div class="control">
+        <label for="resolutionSlider">Resolution (Width):</label>
+        <!-- Slider values 0 to 3 map to [16, 32, 64, 128] -->
+        <input type="range" id="resolutionSlider" min="0" max="3" step="1" value="0" />
+        <span id="resolutionValue">16</span>
+      </div>
+      <div class="control">
+        <label for="thresholdSlider">Threshold:</label>
+        <input type="range" id="thresholdSlider" min="0" max="255" value="100" />
+        <span id="thresholdValue">100</span>
+      </div>
+      <div class="control">
+        <label for="color0">Color for 0:</label>
+        <input type="color" id="color0" value="#646464" />
+      </div>
+      <div class="control">
+        <label for="color1">Color for |:</label>
+        <input type="color" id="color1" value="#FFFFFF" />
+      </div>
+      <div class="control">
+        <label for="bgColor">Background Color:</label>
+        <input type="color" id="bgColor" value="#000000" />
+      </div>
+      <div class="control">
+        <label for="textColorSwitch">Controls Text Color (white):</label>
+        <input type="checkbox" id="textColorSwitch" />
+      </div>
+    </div>
+  </div>
+  <script>
+    let video;
+    let resolution = 16;
+    let threshold = 100;
+    let color0 = '#646464';
+    let color1 = '#FFFFFF';
+    let bgColor = '#000000';
+    let canvasWidth, canvasHeight;
+    // Allowed resolution values (256 removed)
+    const resolutionOptions = [16, 32, 64, 128];
+
+    function setup() {
+      // For mobile view, use a square canvas; otherwise, use a 16:9 canvas.
+      if (windowWidth < 768) {
+        canvasWidth = canvasHeight = Math.min(windowWidth * 0.9, 640);
+      } else {
+        canvasWidth = 640;
+        canvasHeight = 360;
+      }
+      const cnv = createCanvas(canvasWidth, canvasHeight);
+      cnv.parent("binary-art");
+
+      video = createCapture(VIDEO);
+      video.size(canvasWidth, canvasHeight);
+      video.hide();
+
+      noStroke();
+
+      // Use Share Tech Mono so that the "|" looks like a perfectly vertical line.
+      textFont('Share Tech Mono');
+
+      // Set website background color
+      document.body.style.backgroundColor = bgColor;
+
+      // Get control elements
+      const resolutionSlider = document.getElementById('resolutionSlider');
+      const thresholdSlider = document.getElementById('thresholdSlider');
+      const resolutionValue = document.getElementById('resolutionValue');
+      const thresholdValue = document.getElementById('thresholdValue');
+      const color0Picker = document.getElementById('color0');
+      const color1Picker = document.getElementById('color1');
+      const bgColorPicker = document.getElementById('bgColor');
+      const textColorSwitch = document.getElementById('textColorSwitch');
+      const controlsDiv = document.getElementById('controls');
+
+      resolutionSlider.addEventListener('input', (event) => {
+        let idx = parseInt(event.target.value);
+        resolution = resolutionOptions[idx];
+        resolutionValue.textContent = resolution;
+      });
+
+      thresholdSlider.addEventListener('input', (event) => {
+        threshold = parseInt(event.target.value);
+        thresholdValue.textContent = threshold;
+      });
+
+      color0Picker.addEventListener('input', (event) => {
+        color0 = event.target.value;
+      });
+
+      color1Picker.addEventListener('input', (event) => {
+        color1 = event.target.value;
+      });
+
+      bgColorPicker.addEventListener('input', (event) => {
+        bgColor = event.target.value;
+        document.body.style.backgroundColor = bgColor;
+      });
+
+      textColorSwitch.addEventListener('change', (event) => {
+        controlsDiv.style.color = event.target.checked ? '#FFFFFF' : '#000000';
+      });
+    }
+
+    function draw() {
+      background(bgColor);
+      video.loadPixels();
+      // Mirror the video horizontally
+      scale(-1, 1);
+      translate(-width, 0);
+
+      const gridSize = width / resolution;
+      for (let y = 0; y < height; y += gridSize) {
+        for (let x = 0; x < width; x += gridSize) {
+          let index = (x + y * width) * 4;
+          let r = video.pixels[index];
+          let g = video.pixels[index + 1];
+          let b = video.pixels[index + 2];
+
+          let brightnessValue = (r + g + b) / 3;
+          // Use "|" for brightness values above threshold, otherwise "0"
+          let binaryValue = brightnessValue > threshold ? "|" : "0";
+
+          fill(binaryValue === "|" ? color1 : color0);
+          textSize(gridSize * 0.7);
+          textAlign(CENTER, CENTER);
+          text(binaryValue, x + gridSize / 2, y + gridSize / 2);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
